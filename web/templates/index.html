@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram詐欺チェッカー (Cloud版)</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Instagram詐欺チェッカー</h1>
+            <p class="subtitle">アカウントリストをアップロードして詐欺の可能性をチェック (Cloud版)</p>
+        </header>
+
+        <main>
+            <!-- ステータスカード -->
+            <section class="card status-card">
+                <h2>実行状況</h2>
+                <div class="status-content">
+                    <div class="status-indicator" id="statusIndicator">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span class="status-text" id="statusText">{{ state.status }}</span>
+                    </div>
+
+                    <div class="progress-info" id="progressInfo" style="display: none;">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                        </div>
+                        <p class="progress-text">
+                            <span id="progressCurrent">0</span> / <span id="progressTotal">0</span> アカウント
+                        </p>
+                        <p class="current-account">
+                            現在チェック中: <strong id="currentAccount">-</strong>
+                        </p>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button id="stopBtn" class="btn btn-danger" style="display: none;" onclick="stopChecker()">
+                            停止
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ログエリア -->
+                <div class="logs-container">
+                    <h3>ログ</h3>
+                    <div class="logs" id="logs">
+                        <p class="log-empty">ログはありません</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- アップロードカード -->
+            <section class="card upload-card">
+                <h2>CSVアップロード</h2>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="fileInput" name="file" accept=".csv" hidden>
+                        <div class="upload-icon">📁</div>
+                        <p>クリックまたはドラッグ&ドロップでCSVファイルを選択</p>
+                        <p class="upload-hint">※ 1列目にアカウント名を記載してください</p>
+                    </div>
+                    <div class="selected-file" id="selectedFile" style="display: none;">
+                        <span class="file-name" id="fileName"></span>
+                        <button type="button" class="btn btn-small" onclick="clearFile()">取消</button>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+                        アップロード
+                    </button>
+                </form>
+
+                <!-- アップロード済みファイル -->
+                <div class="uploaded-files">
+                    <h3>アップロード済みファイル</h3>
+                    <div id="uploadedList">
+                        <p class="empty-message">ファイルがありません</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Android画面リンク -->
+            <section class="card android-card">
+                <h2>Android画面</h2>
+                <p>リアルタイムでAndroidエミュレータの画面を確認できます</p>
+                <a id="androidScreenLink" href="#" target="_blank" class="btn btn-secondary">
+                    Android画面を開く (scrcpy-web)
+                </a>
+            </section>
+
+            <!-- 結果カード -->
+            <section class="card results-card">
+                <h2>チェック結果</h2>
+                <div id="resultsList">
+                    {% if results %}
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>ファイル名</th>
+                                    <th>サイズ</th>
+                                    <th>作成日時</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in results %}
+                                <tr>
+                                    <td>{{ result.filename }}</td>
+                                    <td>{{ (result.size / 1024) | round(1) }} KB</td>
+                                    <td>{{ result.modified }}</td>
+                                    <td>
+                                        <a href="/results/{{ result.filename }}" class="btn btn-small">
+                                            ダウンロード
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="empty-message">結果がありません</p>
+                    {% endif %}
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Instagram詐欺チェッカー v1.1.0 (Cloud版)</p>
+        </footer>
+    </div>
+
+    <script>
+        // サーバーから渡されたscrcpyポート
+        const scrcpyPort = "{{ scrcpy_port }}";
+
+        // DOM要素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const selectedFile = document.getElementById('selectedFile');
+        const fileName = document.getElementById('fileName');
+
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const progressInfo = document.getElementById('progressInfo');
+        const progressBar = document.getElementById('progressBar');
+        const progressCurrent = document.getElementById('progressCurrent');
+        const progressTotal = document.getElementById('progressTotal');
+        const currentAccount = document.getElementById('currentAccount');
+        const stopBtn = document.getElementById('stopBtn');
+        const logs = document.getElementById('logs');
+
+        let currentUploadedFile = null;
+        let statusInterval = null;
+
+        // Android画面リンクを動的に設定（クラウド環境用）
+        const androidScreenLink = document.getElementById('androidScreenLink');
+        androidScreenLink.href = `http://${window.location.hostname}:${scrcpyPort}`;
+
+        // ファイル選択エリアのクリック
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // ドラッグ&ドロップ
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.endsWith('.csv')) {
+                fileInput.files = files;
+                handleFileSelect(files[0]);
+            } else {
+                alert('CSVファイルを選択してください');
+            }
+        });
+
+        // ファイル選択
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            fileName.textContent = file.name;
+            selectedFile.style.display = 'flex';
+            uploadArea.style.display = 'none';
+            uploadBtn.disabled = false;
+        }
+
+        function clearFile() {
+            fileInput.value = '';
+            selectedFile.style.display = 'none';
+            uploadArea.style.display = 'block';
+            uploadBtn.disabled = true;
+        }
+
+        // アップロードフォーム送信
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'アップロード中...';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentUploadedFile = data.filename;
+                    alert('アップロード完了: ' + data.filename);
+                    loadUploadedFiles();
+                    clearFile();
+                } else {
+                    alert('エラー: ' + data.detail);
+                }
+            } catch (error) {
+                alert('アップロードに失敗しました: ' + error.message);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'アップロード';
+            }
+        });
+
+        // アップロード済みファイル一覧を読み込み
+        async function loadUploadedFiles() {
+            try {
+                const response = await fetch('/uploads');
+                const data = await response.json();
+
+                const list = document.getElementById('uploadedList');
+
+                if (data.uploads.length === 0) {
+                    list.innerHTML = '<p class="empty-message">ファイルがありません</p>';
+                    return;
+                }
+
+                list.innerHTML = `
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>ファイル名</th>
+                                <th>サイズ</th>
+                                <th>アップロード日時</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.uploads.map(file => `
+                                <tr>
+                                    <td>${file.filename}</td>
+                                    <td>${(file.size / 1024).toFixed(1)} KB</td>
+                                    <td>${file.modified}</td>
+                                    <td>
+                                        <button class="btn btn-small btn-primary" onclick="startChecker('${file.filename}')">
+                                            チェック開始
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('アップロード済みファイルの取得に失敗:', error);
+            }
+        }
+
+        // チェッカー開始
+        async function startChecker(filename) {
+            if (!confirm(`"${filename}" のチェックを開始しますか？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/start?filename=${encodeURIComponent(filename)}`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    startStatusPolling();
+                } else {
+                    alert('エラー: ' + data.detail);
+                }
+            } catch (error) {
+                alert('開始に失敗しました: ' + error.message);
+            }
+        }
+
+        // チェッカー停止
+        async function stopChecker() {
+            if (!confirm('チェックを停止しますか？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/stop', { method: 'POST' });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert('エラー: ' + data.detail);
+                }
+            } catch (error) {
+                alert('停止に失敗しました: ' + error.message);
+            }
+        }
+
+        // ステータスのポーリング開始
+        function startStatusPolling() {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+            }
+            updateStatus();
+            statusInterval = setInterval(updateStatus, 1000);
+        }
+
+        // ステータス更新
+        async function updateStatus() {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+
+                // ステータス表示を更新
+                statusText.textContent = data.status;
+
+                if (data.is_running) {
+                    statusDot.classList.add('running');
+                    statusDot.classList.remove('completed', 'error');
+                    progressInfo.style.display = 'block';
+                    stopBtn.style.display = 'inline-block';
+
+                    // プログレスバー更新
+                    const percent = data.total > 0 ? (data.progress / data.total) * 100 : 0;
+                    progressBar.style.width = percent + '%';
+                    progressCurrent.textContent = data.progress;
+                    progressTotal.textContent = data.total;
+                    currentAccount.textContent = data.current_account || '-';
+                } else {
+                    statusDot.classList.remove('running');
+                    if (data.status === '完了') {
+                        statusDot.classList.add('completed');
+                    } else if (data.status === 'エラー') {
+                        statusDot.classList.add('error');
+                    }
+                    stopBtn.style.display = 'none';
+
+                    // ポーリング停止
+                    if (statusInterval && data.status !== '実行中') {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                        // 結果一覧を更新
+                        location.reload();
+                    }
+                }
+
+                // ログ更新
+                if (data.logs && data.logs.length > 0) {
+                    logs.innerHTML = data.logs.map(log => `<p class="log-line">${log}</p>`).join('');
+                    logs.scrollTop = logs.scrollHeight;
+                } else {
+                    logs.innerHTML = '<p class="log-empty">ログはありません</p>';
+                }
+
+            } catch (error) {
+                console.error('ステータス取得に失敗:', error);
+            }
+        }
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUploadedFiles();
+            updateStatus();
+
+            // 実行中ならポーリング開始
+            fetch('/status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.is_running) {
+                        startStatusPolling();
+                    }
+                });
+        });
+    </script>
+</body>
+</html>

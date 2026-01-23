@@ -1,0 +1,39 @@
+# 環境変数（機密情報）
+.env
+
+# データディレクトリ
+data/uploads/*
+data/results/*
+data/screenshots/*
+data/appium/*
+data/adb/*
+!data/**/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# ログ
+*.log
+logs/

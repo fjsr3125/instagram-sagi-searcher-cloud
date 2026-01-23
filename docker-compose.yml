@@ -1,0 +1,157 @@
+version: "3.8"
+
+services:
+  # ===========================================
+  # Redroid - Android Emulator (Android 12, x86_64)
+  # ===========================================
+  redroid:
+    image: redroid/redroid:12.0.0-latest
+    platform: linux/amd64
+    container_name: redroid
+    privileged: true
+    ports:
+      # ADBポートはローカルのみ（セキュリティ対策）
+      - "127.0.0.1:${REDROID_ADB_PORT:-5555}:5555"
+    volumes:
+      - redroid-data:/data
+      # binderfsをマウント（Ubuntuで必要）
+      - /dev/binderfs:/dev/binderfs
+    environment:
+      - androidboot.redroid_width=${REDROID_WIDTH:-1080}
+      - androidboot.redroid_height=${REDROID_HEIGHT:-1920}
+      - androidboot.redroid_dpi=${REDROID_DPI:-480}
+      - androidboot.redroid_fps=${REDROID_FPS:-30}
+      - androidboot.redroid_gpu_mode=${REDROID_GPU_MODE:-guest}
+    shm_size: "1g"
+    mem_limit: "5g"
+    cpus: "2.5"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "getprop sys.boot_completed | grep -q 1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+
+  # ===========================================
+  # Appium Server (固定バージョン)
+  # ===========================================
+  appium:
+    image: appium/appium:2.5.1
+    platform: linux/amd64
+    container_name: appium
+    ports:
+      # Appiumポートはローカルのみ（セキュリティ対策）
+      - "127.0.0.1:${APPIUM_PORT:-4723}:4723"
+    environment:
+      - ANDROID_ADB_SERVER_ADDRESS=redroid
+      - ANDROID_ADB_SERVER_PORT=5555
+    volumes:
+      - ./data/appium:/root/.appium
+      - ./checker:/app/checker:ro
+    depends_on:
+      redroid:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    mem_limit: "1g"
+    cpus: "0.75"
+    command: >
+      appium
+      --address 0.0.0.0
+      --port 4723
+      --relaxed-security
+      --allow-insecure chromedriver_autodownload
+      --log-timestamp
+      --log-no-colors
+
+  # ===========================================
+  # scrcpy-web - Android Screen Viewer
+  # ===========================================
+  scrcpy-web:
+    image: emptysuns/scrcpy-web:v0.1
+    platform: linux/amd64
+    container_name: scrcpy-web
+    ports:
+      - "${SCRCPY_WEB_PORT:-6080}:8000"
+    environment:
+      - ANDROID_DEVICE=redroid:5555
+    depends_on:
+      adb:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+    mem_limit: "512m"
+    cpus: "0.5"
+
+  # ===========================================
+  # FastAPI Web UI
+  # ===========================================
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: web-ui
+    ports:
+      - "${WEB_UI_PORT:-8000}:8000"
+    environment:
+      - APPIUM_HOST=appium
+      - APPIUM_PORT=4723
+      - REDROID_HOST=redroid
+      - REDROID_ADB_PORT=5555
+      - INSTAGRAM_USERNAME=${INSTAGRAM_USERNAME:-}
+      - INSTAGRAM_PASSWORD=${INSTAGRAM_PASSWORD:-}
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      - ./web:/app
+      - ./data:/app/data
+      - ./checker:/app/checker:ro
+    depends_on:
+      - appium
+    networks:
+      - app-network
+    restart: unless-stopped
+    mem_limit: "512m"
+    cpus: "0.5"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  # ===========================================
+  # ADB Bridge (for connecting to Redroid)
+  # ===========================================
+  adb:
+    image: sorccu/adb:latest
+    platform: linux/amd64
+    container_name: adb-bridge
+    environment:
+      - ADB_SERVER_SOCKET=tcp:redroid:5555
+    volumes:
+      - ./data/adb:/root/.android
+    depends_on:
+      redroid:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    mem_limit: "256m"
+    cpus: "0.25"
+    command: >
+      sh -c "adb connect redroid:5555 && adb devices && sleep infinity"
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  app-network:
+    driver: bridge
+    name: instagram-checker-network
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  redroid-data:
+    name: instagram-checker-redroid-data

@@ -1,0 +1,15 @@
+# FastAPI Web UI Dependencies (Cloud版)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+jinja2>=3.1.2
+aiofiles>=23.2.1
+httpx>=0.25.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Appium Client
+Appium-Python-Client>=3.1.0
+
+# Utilities
+python-dotenv>=1.0.0
