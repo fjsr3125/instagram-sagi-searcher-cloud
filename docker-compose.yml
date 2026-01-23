@@ -2,11 +2,10 @@ version: "3.8"
 
 services:
   # ===========================================
-  # Redroid - Android Emulator (Android 12, x86_64)
+  # Redroid - Android Emulator (Android 12, ARM64)
   # ===========================================
   redroid:
-    image: redroid/redroid:12.0.0-latest
-    platform: linux/amd64
+    image: redroid/redroid:12.0.0_64only-latest
     container_name: redroid
     privileged: true
     ports:
@@ -40,7 +39,6 @@ services:
   # ===========================================
   appium:
     image: appium/appium:2.5.1
-    platform: linux/amd64
     container_name: appium
     ports:
       # Appiumポートはローカルのみ（セキュリティ対策）
@@ -73,7 +71,6 @@ services:
   # ===========================================
   scrcpy-web:
     image: emptysuns/scrcpy-web:v0.1
-    platform: linux/amd64
     container_name: scrcpy-web
     ports:
       - "${SCRCPY_WEB_PORT:-6080}:8000"
@@ -124,7 +121,6 @@ services:
   # ===========================================
   adb:
     image: sorccu/adb:latest
-    platform: linux/amd64
     container_name: adb-bridge
     environment:
       - ADB_SERVER_SOCKET=tcp:redroid:5555

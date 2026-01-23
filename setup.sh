@@ -1,7 +1,7 @@
 #!/bin/bash
 # ===========================================
 # Instagram 詐欺チェッカー Cloud版 - セットアップスクリプト
-# Contabo (Ubuntu 22.04 x86_64) 向け
+# Oracle Cloud ARM Linux VM (Ubuntu 22.04) 向け
 # ===========================================
 
 set -e
@@ -33,7 +33,7 @@ log_error() {
 echo ""
 echo "=========================================="
 echo " Instagram 詐欺チェッカー Cloud版"
-echo " セットアップスクリプト（Contabo/Ubuntu 22.04）"
+echo " セットアップスクリプト（Oracle Cloud ARM/Ubuntu 22.04）"
 echo "=========================================="
 echo ""
 

@@ -1,11 +1,11 @@
 # Instagram 詐欺チェッカー Cloud版
 
 Instagramアカウントの詐欺警告を自動チェックするツールのCloud版です。
-Contabo（Ubuntu 22.04 x86_64）での運用を想定しています。
+Oracle Cloud Always Free（Ubuntu 22.04 ARM）での運用を想定しています。
 
 ## 特徴
 
-- **x86_64対応**: Contabo VPS（Ubuntu 22.04）で動作
+- **ARM64対応**: Oracle Cloud Always Free（Ubuntu 22.04）で動作
 - **Web UI**: ブラウザから簡単操作
 - **リアルタイム表示**: Android画面をブラウザで確認可能
 
@@ -18,11 +18,11 @@ Contabo（Ubuntu 22.04 x86_64）での運用を想定しています。
 
 ## 必要環境
 
-- Contabo VPS（4コア / 8GB RAM 推奨）
-- Ubuntu 22.04 x86_64
+- Oracle Cloud Always Free ARM（4コア / 24GB RAM）
+- Ubuntu 22.04 ARM64
 - SSH接続できる環境
 
-## クイックスタート（Contabo）
+## クイックスタート（Oracle Cloud Always Free）
 
 ```bash
 # 1. リポジトリをクローン
@@ -44,7 +44,7 @@ nano .env  # INSTAGRAM_USERNAME/PASSWORDを設定
 docker compose up -d
 ```
 
-## Contabo向けの補足手順
+## Oracle Cloud Always Free向けの補足手順
 
 ### 1) ファイアウォール（UFW）でポートを開放
 
@@ -80,7 +80,7 @@ docker compose logs -f redroid
 
 ```
 instagram_sagi_checker_cloud/
-├── docker-compose.yml   # Docker構成（x86_64対応）
+├── docker-compose.yml   # Docker構成（ARM64対応）
 ├── setup.sh             # セットアップスクリプト
 ├── .env.example         # 環境変数テンプレート
 ├── web/                 # Web UI (FastAPI)

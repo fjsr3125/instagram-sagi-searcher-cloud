@@ -1,21 +1,21 @@
-# Instagram 詐欺チェッカー Cloud版 - デプロイガイド（Contabo）
+# Instagram 詐欺チェッカー Cloud版 - デプロイガイド（Oracle Cloud Always Free）
 
-Contabo（Ubuntu 22.04 x86_64）でのデプロイ手順です。
+Oracle Cloud Always Free（Ubuntu 22.04 ARM）でのデプロイ手順です。
 
 ## 前提条件
 
-- Contabo VPS（4コア / 8GB RAM 推奨）
-- Ubuntu 22.04 x86_64
+- Oracle Cloud Always Free ARM（4コア / 24GB RAM）
+- Ubuntu 22.04 ARM64
 - SSHクライアント（ターミナル、PuTTY等）
 - SSH鍵ペア（既存のものを使用、または新規作成）
 
 ---
 
-## Step 1: ContaboでVPSを作成
+## Step 1: Oracle CloudでARM VMを作成
 
-1. Contaboの管理画面にログイン
-2. VPSを作成
-3. OSは **Ubuntu 22.04 (x86_64)** を選択
+1. Oracle Cloudの管理画面にログイン
+2. ARM VMを作成
+3. OSは **Ubuntu 22.04 (ARM64)** を選択
 4. 公開IPが付与されていることを確認
 
 ---
@@ -24,7 +24,7 @@ Contabo（Ubuntu 22.04 x86_64）でのデプロイ手順です。
 
 ```bash
 # SSH接続
-ssh <USER>@<PUBLIC_IP>
+ssh ubuntu@<PUBLIC_IP>
 ```
 
 初回接続時は `yes` と入力してフィンガープリントを承認します。
@@ -49,7 +49,7 @@ chmod +x setup.sh
 
 ```bash
 exit
-ssh <USER>@<PUBLIC_IP>
+ssh ubuntu@<PUBLIC_IP>
 ```
 
 ---
