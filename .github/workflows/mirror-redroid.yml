@@ -1,0 +1,35 @@
+name: Mirror Redroid image to GHCR
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull, tag, and push
+        run: |
+          set -e
+          SRC=edwardzhouquan/redroid-mindthegapps-arm64:12.0.0-arm64_only-swiftshader-new
+          DST=ghcr.io/fjsr3125/instagram-sagi-searcher-cloud-redroid:latest
+          docker pull --platform=linux/arm64 "$SRC"
+          docker tag "$SRC" "$DST"
+          docker push "$DST"

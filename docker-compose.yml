@@ -6,7 +6,7 @@ services:
   # ===========================================
   redroid:
     # SwiftShader 同梱ビルド（GPUなし環境向け）。arm64 ネイティブ。
-    image: edwardzhouquan/redroid-mindthegapps-arm64:12.0.0-arm64_only-swiftshader-new
+    image: ghcr.io/fjsr3125/instagram-sagi-searcher-cloud-redroid:latest
     container_name: redroid
     privileged: true
     ports:
