@@ -2,10 +2,11 @@ version: "3.8"
 
 services:
   # ===========================================
-  # Redroid - Android Emulator (Android 12, ARM64)
+  # Redroid - Android Emulator (Android 13, ARM64 Native)
   # ===========================================
   redroid:
-    image: redroid/redroid:12.0.0_64only-latest
+    # SwiftShader 同梱ビルド（GPUなし環境向け）。arm64 ネイティブ。
+    image: edwardzhouquan/redroid-mindthegapps-arm64:12.0.0-arm64_only-swiftshader-new
     container_name: redroid
     privileged: true
     ports:
@@ -13,16 +14,22 @@ services:
       - "127.0.0.1:${REDROID_ADB_PORT:-5555}:5555"
     volumes:
       - redroid-data:/data
-      # binderfsをマウント（Ubuntuで必要）
-      - /dev/binderfs:/dev/binderfs
-    environment:
-      - androidboot.redroid_width=${REDROID_WIDTH:-1080}
-      - androidboot.redroid_height=${REDROID_HEIGHT:-1920}
-      - androidboot.redroid_dpi=${REDROID_DPI:-480}
-      - androidboot.redroid_fps=${REDROID_FPS:-30}
-      - androidboot.redroid_gpu_mode=${REDROID_GPU_MODE:-guest}
+    # androidboot.*はcommandで渡す（environmentでは反映されない）
+    command:
+      - androidboot.redroid_width=1080
+      - androidboot.redroid_height=1920
+      - androidboot.redroid_dpi=480
+      - androidboot.redroid_fps=30
+      # GPUなし環境なので SwiftShader を強制
+      - androidboot.redroid_gpu_mode=guest
+      - ro.hardware.egl=swiftshader
+      - ro.hardware.hwcomposer=none
+      - ro.hardware.keystore=software
+      - ro.hardware.gatekeeper=software
+      - ro.surface_flinger.disable_hwc=1
+      - androidboot.use_memfd=1
     shm_size: "1g"
-    mem_limit: "5g"
+    mem_limit: "6g"
     cpus: "2.5"
     networks:
       - app-network
@@ -32,13 +39,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 30
-      start_period: 90s
+      start_period: 180s
 
   # ===========================================
   # Appium Server (固定バージョン)
   # ===========================================
   appium:
-    image: appium/appium:2.5.1
+    image: ghcr.io/fjsr3125/instagram-sagi-searcher-cloud-appium:latest
+    build:
+      context: ./appium
+      dockerfile: Dockerfile
     container_name: appium
     ports:
       # Appiumポートはローカルのみ（セキュリティ対策）
@@ -49,13 +59,23 @@ services:
     volumes:
       - ./data/appium:/root/.appium
       - ./checker:/app/checker:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:4723/status | grep -Eq '\"ready\"\\s*:\\s*true' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     depends_on:
       redroid:
         condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
-    mem_limit: "1g"
+    mem_limit: "1.5g"
     cpus: "0.75"
     command: >
       appium
@@ -67,28 +87,10 @@ services:
       --log-no-colors
 
   # ===========================================
-  # scrcpy-web - Android Screen Viewer
-  # ===========================================
-  scrcpy-web:
-    image: emptysuns/scrcpy-web:v0.1
-    container_name: scrcpy-web
-    ports:
-      - "${SCRCPY_WEB_PORT:-6080}:8000"
-    environment:
-      - ANDROID_DEVICE=redroid:5555
-    depends_on:
-      adb:
-        condition: service_started
-    networks:
-      - app-network
-    restart: unless-stopped
-    mem_limit: "512m"
-    cpus: "0.5"
-
-  # ===========================================
   # FastAPI Web UI
   # ===========================================
   web:
+    image: ghcr.io/fjsr3125/instagram-sagi-searcher-cloud-web:latest
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -108,34 +110,14 @@ services:
       - ./data:/app/data
       - ./checker:/app/checker:ro
     depends_on:
-      - appium
+      appium:
+        condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
     mem_limit: "512m"
     cpus: "0.5"
     command: uvicorn main:app --host 0.0.0.0 --port 8000
-
-  # ===========================================
-  # ADB Bridge (for connecting to Redroid)
-  # ===========================================
-  adb:
-    image: sorccu/adb:latest
-    container_name: adb-bridge
-    environment:
-      - ADB_SERVER_SOCKET=tcp:redroid:5555
-    volumes:
-      - ./data/adb:/root/.android
-    depends_on:
-      redroid:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-    mem_limit: "256m"
-    cpus: "0.25"
-    command: >
-      sh -c "adb connect redroid:5555 && adb devices && sleep infinity"
 
 # ===========================================
 # Networks
