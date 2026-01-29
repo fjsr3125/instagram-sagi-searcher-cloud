@@ -14,6 +14,64 @@
         </header>
 
         <main>
+            <!-- アカウント状況カード -->
+            {% if accounts %}
+            <section class="card accounts-card">
+                <h2>Instagramアカウント状況</h2>
+                <div class="accounts-grid">
+                    {% for acc in accounts %}
+                    <div class="account-item {% if not acc.is_available %}account-exhausted{% endif %}">
+                        <div class="account-name">@{{ acc.username }}</div>
+                        <div class="account-stats">
+                            <span class="follow-count">{{ acc.today_follows }}/60</span>
+                            <span class="follow-remaining">
+                                {% if acc.is_available %}
+                                    残り{{ acc.remaining }}回
+                                {% else %}
+                                    上限到達
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="account-bar">
+                            <div class="account-bar-fill" style="width: {{ (acc.today_follows / 60 * 100) | round }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- キュー状況カード -->
+            <section class="card queue-card" id="queueCard">
+                <h2>キュー状況</h2>
+                <div class="queue-content" id="queueContent">
+                    {% if current_job %}
+                    <div class="queue-current">
+                        <div class="queue-label">現在の処理:</div>
+                        <div class="queue-item queue-item-running">
+                            <span class="queue-filename">{{ current_job.filename }}</span>
+                            <span class="queue-progress">({{ current_job.progress }}/{{ current_job.total }})</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if queue_pending > 0 %}
+                    <div class="queue-pending">
+                        <div class="queue-label">待ち: {{ queue_pending }}件</div>
+                        <div class="queue-list" id="queueList">
+                            <!-- JavaScriptで動的に更新 -->
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="queue-empty" id="queueEmpty">
+                        {% if not current_job %}
+                        <p>キューは空です</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
             <!-- ステータスカード -->
             <section class="card status-card">
                 <h2>実行状況</h2>
@@ -384,19 +442,120 @@
             }
         }
 
+        // キュー状況を更新
+        async function updateQueueStatus() {
+            try {
+                const response = await fetch('/queue');
+                const data = await response.json();
+
+                const queueContent = document.getElementById('queueContent');
+
+                let html = '';
+
+                // 現在の処理
+                if (data.current) {
+                    html += `
+                        <div class="queue-current">
+                            <div class="queue-label">現在の処理:</div>
+                            <div class="queue-item queue-item-running">
+                                <span class="queue-filename">${data.current.filename}</span>
+                                <span class="queue-progress">(${data.current.progress}/${data.current.total})</span>
+                                ${data.current.instagram_account ? `<span class="queue-account">@${data.current.instagram_account}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 待ちジョブ
+                if (data.pending && data.pending.length > 0) {
+                    html += `
+                        <div class="queue-pending">
+                            <div class="queue-label">待ち: ${data.pending.length}件</div>
+                            <div class="queue-list">
+                                ${data.pending.map((job, index) => `
+                                    <div class="queue-item queue-item-pending">
+                                        <span class="queue-position">${index + 1}.</span>
+                                        <span class="queue-filename">${job.filename}</span>
+                                        <button class="btn btn-small btn-danger" onclick="cancelJob('${job.id}')">キャンセル</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else if (!data.current) {
+                    html += '<div class="queue-empty"><p>キューは空です</p></div>';
+                }
+
+                queueContent.innerHTML = html;
+
+                // アカウント状況を更新
+                if (data.accounts && data.accounts.length > 0) {
+                    updateAccountsDisplay(data.accounts);
+                }
+
+            } catch (error) {
+                console.error('キュー状況取得に失敗:', error);
+            }
+        }
+
+        // アカウント状況表示を更新
+        function updateAccountsDisplay(accounts) {
+            const accountsGrid = document.querySelector('.accounts-grid');
+            if (!accountsGrid) return;
+
+            accountsGrid.innerHTML = accounts.map(acc => `
+                <div class="account-item ${!acc.is_available ? 'account-exhausted' : ''}">
+                    <div class="account-name">@${acc.username}</div>
+                    <div class="account-stats">
+                        <span class="follow-count">${acc.today_follows}/60</span>
+                        <span class="follow-remaining">
+                            ${acc.is_available ? `残り${acc.remaining}回` : '上限到達'}
+                        </span>
+                    </div>
+                    <div class="account-bar">
+                        <div class="account-bar-fill" style="width: ${Math.round(acc.today_follows / 60 * 100)}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ジョブをキャンセル
+        async function cancelJob(jobId) {
+            if (!confirm('このジョブをキャンセルしますか？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/queue/${jobId}`, { method: 'DELETE' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    updateQueueStatus();
+                } else {
+                    alert('エラー: ' + data.detail);
+                }
+            } catch (error) {
+                alert('キャンセルに失敗しました: ' + error.message);
+            }
+        }
+
         // 初期化
         document.addEventListener('DOMContentLoaded', () => {
             loadUploadedFiles();
             updateStatus();
+            updateQueueStatus();
 
             // 実行中ならポーリング開始
             fetch('/status')
                 .then(res => res.json())
                 .then(data => {
-                    if (data.is_running) {
+                    if (data.is_running || data.queue_pending > 0) {
                         startStatusPolling();
                     }
                 });
+
+            // キュー状況は定期的に更新（5秒ごと）
+            setInterval(updateQueueStatus, 5000);
         });
     </script>
 </body>

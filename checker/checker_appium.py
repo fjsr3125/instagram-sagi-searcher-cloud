@@ -170,6 +170,122 @@ class InstagramAppiumChecker:
         except Exception:
             return False
 
+    def logout(self) -> bool:
+        """Instagramからログアウト"""
+        try:
+            print("  ログアウト処理を開始...")
+            self._go_home()
+            time.sleep(2)
+
+            # プロフィールタブに移動（画面下部右端）
+            window_size = self.driver.get_window_size()
+            profile_x = int(window_size['width'] * 0.9)
+            profile_y = window_size['height'] - 50
+            self.driver.tap([(profile_x, profile_y)], 100)
+            time.sleep(2)
+
+            # 設定メニューを開く（ハンバーガーメニュー）
+            try:
+                menu_btn = self.wait_and_find(
+                    AppiumBy.XPATH,
+                    "//android.widget.ImageView[@content-desc='オプション' or @content-desc='Options' or @content-desc='設定']",
+                    timeout=5
+                )
+                menu_btn.click()
+                time.sleep(1)
+            except TimeoutException:
+                # 右上のメニューボタンをタップ
+                self.driver.tap([(window_size['width'] - 50, 100)], 100)
+                time.sleep(1)
+
+            # 設定とアクティビティ
+            try:
+                settings_btn = self.wait_and_find(
+                    AppiumBy.XPATH,
+                    "//android.widget.TextView[contains(@text, '設定') or contains(@text, 'Settings')]",
+                    timeout=3
+                )
+                settings_btn.click()
+                time.sleep(1)
+            except TimeoutException:
+                pass
+
+            # ログアウトボタンを探す（スクロールが必要な場合あり）
+            for _ in range(5):
+                try:
+                    logout_btn = self.driver.find_element(
+                        AppiumBy.XPATH,
+                        "//android.widget.TextView[contains(@text, 'ログアウト') or contains(@text, 'Log out')]"
+                    )
+                    logout_btn.click()
+                    time.sleep(1)
+
+                    # 確認ダイアログ
+                    confirm_btn = self.wait_and_find(
+                        AppiumBy.XPATH,
+                        "//android.widget.Button[contains(@text, 'ログアウト') or contains(@text, 'Log out') or contains(@text, 'Log Out')]",
+                        timeout=3
+                    )
+                    confirm_btn.click()
+                    time.sleep(3)
+                    print("  ログアウト完了")
+                    return True
+                except NoSuchElementException:
+                    # スクロールダウン
+                    self.driver.swipe(
+                        window_size['width'] // 2,
+                        window_size['height'] // 2,
+                        window_size['width'] // 2,
+                        window_size['height'] // 4,
+                        500
+                    )
+                    time.sleep(1)
+
+            print("  ログアウトボタンが見つかりませんでした")
+            return False
+
+        except Exception as e:
+            print(f"  ログアウトエラー: {e}")
+            return False
+
+    def switch_account(self, new_username: str, new_password: str) -> bool:
+        """
+        アカウントを切り替える
+
+        Args:
+            new_username: 新しいアカウントのユーザー名
+            new_password: 新しいアカウントのパスワード
+
+        Returns:
+            bool: 切り替え成功時True
+        """
+        print(f"  アカウント切り替え: {self.username} → {new_username}")
+
+        # ログアウト
+        if not self.logout():
+            print("  ログアウト失敗、アプリを再起動して再試行...")
+            # アプリを強制終了して再起動
+            try:
+                subprocess.run([ADB_PATH, 'shell', 'am', 'force-stop', 'com.instagram.android'], check=True)
+                time.sleep(2)
+                self._go_home()
+                time.sleep(3)
+            except Exception as e:
+                print(f"  アプリ再起動失敗: {e}")
+                return False
+
+        # 新しいアカウント情報を設定
+        self.username = new_username
+        self.password = new_password
+
+        # ログイン
+        if self.login():
+            print(f"  アカウント切り替え完了: {new_username}")
+            return True
+        else:
+            print(f"  新しいアカウントへのログイン失敗: {new_username}")
+            return False
+
     def login(self) -> bool:
         """Instagramにログイン"""
         try:
@@ -177,6 +293,7 @@ class InstagramAppiumChecker:
             self._go_home()
 
             if self.is_logged_in():
+                # 現在のアカウントを確認
                 print("  すでにログイン済み")
                 return True
 

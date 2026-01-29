@@ -359,6 +359,165 @@ footer {
     margin-top: 30px;
 }
 
+/* ===========================================
+   アカウント状況カード
+   =========================================== */
+.accounts-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.accounts-card h2 {
+    color: white;
+    border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+.accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.account-item {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius);
+    padding: 16px;
+    backdrop-filter: blur(10px);
+}
+
+.account-item.account-exhausted {
+    background: rgba(255, 255, 255, 0.08);
+    opacity: 0.7;
+}
+
+.account-name {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.account-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+
+.follow-count {
+    font-weight: 500;
+}
+
+.follow-remaining {
+    opacity: 0.8;
+}
+
+.account-exhausted .follow-remaining {
+    color: #fbbf24;
+    font-weight: 600;
+}
+
+.account-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.account-bar-fill {
+    height: 100%;
+    background: white;
+    transition: width 0.3s ease;
+}
+
+.account-exhausted .account-bar-fill {
+    background: #fbbf24;
+}
+
+/* ===========================================
+   キュー状況カード
+   =========================================== */
+.queue-card {
+    border-left: 4px solid var(--primary-color);
+}
+
+.queue-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.queue-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.queue-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--background);
+    border-radius: var(--radius);
+}
+
+.queue-item-running {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+    border: 1px solid var(--primary-color);
+}
+
+.queue-item-pending {
+    border: 1px solid var(--border-color);
+}
+
+.queue-position {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 24px;
+}
+
+.queue-filename {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.queue-progress {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.queue-account {
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.queue-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.queue-current {
+    background: rgba(79, 70, 229, 0.05);
+    border-radius: var(--radius);
+    padding: 12px;
+}
+
+.queue-pending {
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
     .container {
@@ -411,5 +570,18 @@ footer {
         flex-direction: column;
         gap: 8px;
         text-align: center;
+    }
+
+    .accounts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .queue-item {
+        flex-wrap: wrap;
+    }
+
+    .queue-item .btn {
+        width: 100%;
+        margin-top: 8px;
     }
 }
