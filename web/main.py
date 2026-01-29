@@ -333,13 +333,10 @@ def run_checker_sync(csv_path: str, output_path: str, job: Optional[QueueItem] =
         elif status == 'warning_detected':
             warning_details = details.get('warning_details', '')
             add_log(f"[警告検出] @{username}: {warning_details}")
-            # フォロー数をインクリメント
-            if execution_state.get("instagram_account"):
-                account_stats = increment_follow_count(account_stats, execution_state["instagram_account"])
-                save_account_stats(account_stats)
+            # 警告検出 = フォロー未完了なのでカウントしない
         elif status == 'no_warning':
             add_log(f"[正常] @{username}: 警告なし")
-            # フォロー数をインクリメント
+            # 警告なし = 実際にフォロー→解除したのでカウント
             if execution_state.get("instagram_account"):
                 account_stats = increment_follow_count(account_stats, execution_state["instagram_account"])
                 save_account_stats(account_stats)
