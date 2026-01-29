@@ -22,4 +22,8 @@ RUN npm install -g appium@${APPIUM_VERSION} \
  && appium driver install uiautomator2 \
  && npm cache clean --force
 
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 4723
+ENTRYPOINT ["docker-entrypoint.sh"]
