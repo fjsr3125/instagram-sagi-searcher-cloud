@@ -132,7 +132,7 @@ services:
   # scrcpy-web - Android Screen Viewer
   # ===========================================
   scrcpy-web:
-    image: drewgaren/ws-scrcpy:latest
+    image: scavin/ws-scrcpy:latest
     container_name: scrcpy-web
     ports:
       - "${SCRCPY_WEB_PORT:-6080}:8000"
