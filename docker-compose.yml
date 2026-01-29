@@ -12,7 +12,9 @@ services:
     ports:
       # ADBポートはローカルのみ（セキュリティ対策）
       - "127.0.0.1:${REDROID_ADB_PORT:-5555}:5555"
+    # binderfsをボリュームマウント（kernel 5.15+対応）
     volumes:
+      - /dev/binderfs:/dev/binderfs
       - redroid-data:/data
     # androidboot.*はcommandで渡す（environmentでは反映されない）
     command:
@@ -28,6 +30,10 @@ services:
       - ro.hardware.gatekeeper=software
       - ro.surface_flinger.disable_hwc=1
       - androidboot.use_memfd=1
+      # binderfsパスを明示（kernel 5.15+対応）
+      - androidboot.binder=/dev/binderfs/binder
+      - androidboot.hwbinder=/dev/binderfs/hwbinder
+      - androidboot.vndbinder=/dev/binderfs/vndbinder
     shm_size: "1g"
     mem_limit: "6g"
     cpus: "2.5"
@@ -102,8 +108,11 @@ services:
       - APPIUM_PORT=4723
       - REDROID_HOST=redroid
       - REDROID_ADB_PORT=5555
+      - INSTAGRAM_ACCOUNTS=${INSTAGRAM_ACCOUNTS:-}
       - INSTAGRAM_USERNAME=${INSTAGRAM_USERNAME:-}
       - INSTAGRAM_PASSWORD=${INSTAGRAM_PASSWORD:-}
+      - CHECK_DELAY=${CHECK_DELAY:-10}
+      - BATCH_SIZE=${BATCH_SIZE:-20}
       - DEBUG=${DEBUG:-false}
     volumes:
       - ./web:/app
@@ -119,6 +128,33 @@ services:
     cpus: "0.5"
     command: uvicorn main:app --host 0.0.0.0 --port 8000
 
+  # ===========================================
+  # Caddy - HTTPS Reverse Proxy (Optional)
+  # ===========================================
+  # 使用する場合: .envにDOMAINを設定してください
+  # 例: DOMAIN=insta-checker.duckdns.org
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    profiles:
+      - https
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    networks:
+      - app-network
+    restart: unless-stopped
+    mem_limit: "128m"
+    cpus: "0.25"
+
 # ===========================================
 # Networks
 # ===========================================
@@ -133,3 +169,7 @@ networks:
 volumes:
   redroid-data:
     name: instagram-checker-redroid-data
+  caddy-data:
+    name: instagram-checker-caddy-data
+  caddy-config:
+    name: instagram-checker-caddy-config
