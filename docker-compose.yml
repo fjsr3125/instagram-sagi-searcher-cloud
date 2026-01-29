@@ -129,13 +129,18 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000
 
   # ===========================================
-  # scrcpy-web - Android Screen Viewer
+  # scrcpy-web - Android Screen Viewer (ARM64対応)
   # ===========================================
   scrcpy-web:
-    image: scavin/ws-scrcpy:latest
+    image: ghcr.io/fjsr3125/instagram-sagi-searcher-cloud-scrcpy-web:latest
+    build:
+      context: ./scrcpy-web
+      dockerfile: Dockerfile
     container_name: scrcpy-web
     ports:
       - "${SCRCPY_WEB_PORT:-6080}:8000"
+    environment:
+      - SCRCPY_SERVER_PATH=/app/dist/scrcpy-server.jar
     depends_on:
       redroid:
         condition: service_healthy

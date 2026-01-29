@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - master
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -26,6 +28,10 @@ jobs:
             context: ./web
             dockerfile: ./web/Dockerfile
             image: ghcr.io/fjsr3125/instagram-sagi-searcher-cloud-web
+          - name: scrcpy-web
+            context: ./scrcpy-web
+            dockerfile: ./scrcpy-web/Dockerfile
+            image: ghcr.io/fjsr3125/instagram-sagi-searcher-cloud-scrcpy-web
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,8 +55,10 @@ jobs:
         with:
           images: ${{ matrix.image }}
           tags: |
-            type=raw,value=latest
-            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=
 
       - name: Build and push
         uses: docker/build-push-action@v5
