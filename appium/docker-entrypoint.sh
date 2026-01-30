@@ -5,7 +5,7 @@ ADB_HOST="${ANDROID_ADB_SERVER_ADDRESS:-redroid}"
 ADB_PORT="${ANDROID_ADB_SERVER_PORT:-5555}"
 
 echo "Starting ADB server..."
-adb start-server || true
+timeout 10 adb start-server 2>&1 || echo "ADB server start skipped/timeout"
 
 echo "Waiting for Redroid at ${ADB_HOST}:${ADB_PORT}..."
 MAX_RETRIES=30
