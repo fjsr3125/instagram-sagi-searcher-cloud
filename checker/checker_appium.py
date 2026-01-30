@@ -91,6 +91,9 @@ class InstagramAppiumChecker:
                 options.no_reset = True  # アプリデータを保持
                 options.auto_grant_permissions = True
                 options.new_command_timeout = 600  # タイムアウトを延長
+                # Remote ADB接続設定（コンテナ環境用）
+                options.set_capability("appium:remoteAdbHost", os.getenv("REDROID_HOST", "redroid"))
+                options.set_capability("appium:adbPort", int(os.getenv("REDROID_ADB_PORT", "5555")))
 
                 self.driver = webdriver.Remote(
                     command_executor=appium_url,
