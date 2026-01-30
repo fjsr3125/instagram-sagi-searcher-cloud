@@ -8,18 +8,15 @@ ENV PATH="${ANDROID_HOME}/platform-tools:${PATH}"
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     openjdk-17-jre-headless \
+    android-tools-adb \
     curl \
     ca-certificates \
     git \
-    unzip \
  && rm -rf /var/lib/apt/lists/*
 
-# Google公式platform-tools (ARM64対応)
-RUN mkdir -p ${ANDROID_HOME} \
- && curl -fsSL https://dl.google.com/android/repository/platform-tools-latest-linux.zip -o /tmp/platform-tools.zip \
- && unzip /tmp/platform-tools.zip -d ${ANDROID_HOME} \
- && rm /tmp/platform-tools.zip \
- && chmod +x ${ANDROID_HOME}/platform-tools/*
+# ANDROID_HOME構造を作成し、システムのadbをリンク
+RUN mkdir -p ${ANDROID_HOME}/platform-tools \
+ && ln -s /usr/bin/adb ${ANDROID_HOME}/platform-tools/adb
 
 RUN npm install -g appium@${APPIUM_VERSION} \
  && appium driver install uiautomator2 \
